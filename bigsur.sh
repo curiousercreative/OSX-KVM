@@ -14,7 +14,7 @@ echo 0 | sudo tee /sys/module/kvm/parameters/report_ignored_msrs > /dev/null
 # NOTE: Tweak the "MY_OPTIONS" line in case you are having booting problems!
 ############################################################################
 
-MY_OPTIONS="+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+xsave,+xsaveopt,+pdpe1gb,check"
+MY_OPTIONS="+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+xsave,+xsaveopt,+pdpe1gb,check,+vmx"
 
 # This script works for Big Sur, Catalina, Mojave, and High Sierra. Tested with
 # macOS 10.15.6, macOS 10.14.6, and macOS 10.13.6
@@ -46,18 +46,18 @@ args=(
   -smbios type=2
   -device ich9-intel-hda -device hda-duplex
   -device ich9-ahci,id=sata
-  # -drive id=OpenCoreBoot,if=none,snapshot=on,format=qcow2,file="$REPO_PATH/OpenCore-Catalina/OpenCore.qcow2"
+  -drive id=OpenCoreBoot,if=none,snapshot=on,format=qcow2,file="$REPO_PATH/OpenCore-Catalina/OpenCore.qcow2"
   # -drive id=OpenCoreBoot,if=none,snapshot=on,format=qcow2,file="$REPO_PATH/OpenCore-Catalina/OpenCore-nopicker.qcow2"
-  -drive id=OpenCoreBoot,if=none,snapshot=on,format=qcow2,file="$REPO_PATH/OpenCore-Catalina/OpenCore-Passthrough.qcow2"
+  # -drive id=OpenCoreBoot,if=none,snapshot=on,format=qcow2,file="$REPO_PATH/OpenCore-Catalina/OpenCore-Passthrough.qcow2"
   -device ide-hd,bus=sata.2,drive=OpenCoreBoot
-  # -device ide-hd,bus=sata.3,drive=InstallMedia
-  # -drive id=InstallMedia,if=none,file="$REPO_PATH/BaseSystem.img",format=raw
-  -drive id=tiny,if=none,file="$REPO_PATH/mojave.img",format=qcow2
-  -device ide-hd,bus=sata.4,drive=tiny
+  -drive id=MacHDD,if=none,file="$REPO_PATH/bigsur.img",format=qcow2
+  -device ide-hd,bus=sata.3,drive=MacHDD
+  -device ide-hd,bus=sata.4,drive=InstallMedia
+  -drive id=InstallMedia,if=none,file="$REPO_PATH/BaseSystem.img",format=raw
   -netdev tap,id=net0,ifname=tap0,script=no,downscript=no
-  -device vmxnet3,netdev=net0,id=eth0,mac=52:54:00:c9:18:27
-  # -netdev tap,id=net1,ifname=tap1,script=no,downscript=no
-  # -device virtio-net-pci,netdev=net1,id=eth1,mac=52:54:00:8e:e2:66,vectors=0
+  -device virtio-net-pci,netdev=net0,id=eth0,mac=52:54:00:c9:18:27
+  -netdev tap,id=net1,ifname=tap1,script=no,downscript=no
+  -device virtio-net-pci,netdev=net1,id=eth1,mac=52:54:00:8e:e2:66
   -device pcie-root-port,bus=pcie.0,multifunction=on,port=1,chassis=1,id=port.1
   -device vfio-pci,host=03:00.0,bus=port.1,multifunction=on,x-vga=on
   -device vfio-pci,host=03:00.1,bus=port.1
@@ -72,15 +72,15 @@ sudo ip link set tap0 master br0
 sudo ip link set dev tap0 up
 sudo ip link set dev tap0 mtu 9000
 
-# sudo ip tuntap add dev tap1 mode tap user $(whoami)
-# sudo ip link set tap1 master br0
-# sudo ip link set dev tap1 up
-# sudo ip link set dev tap1 mtu 9000
+sudo ip tuntap add dev tap1 mode tap user $(whoami)
+sudo ip link set tap1 master br100
+sudo ip link set dev tap1 up
+sudo ip link set dev tap1 mtu 9000
 
 sudo qemu-system-x86_64 "${args[@]}"
 
 # destroy bridge
 sudo ip link set dev tap0 down
 sudo ip tuntap del tap0 mode tap
-# sudo ip link set dev tap1 down
-# sudo ip tuntap del tap1 mode tap
+sudo ip link set dev tap1 down
+sudo ip tuntap del tap1 mode tap
